@@ -6,7 +6,7 @@ Repository: https://github.com/Tejaswini345/inclass_07_tejaswini_suma
 ## Team
 
 | Member | GitHub | Team | Pathway (UG/Grad) | Role |
-|---|---|---|---|---|---|
+|---|---|---|---|---|
 | Tejaswini | Tejaswini345 | Team 2 · Pet Personality | Graduate | UI owner, release owner, quality reviewer |
 | Suma | EnjamSuma | Team 1 · Care Systems | Graduate | State owner (rules, timers, tests) | 
 
