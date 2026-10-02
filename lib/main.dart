@@ -1,121 +1,308 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+import 'pet_controller.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+void main() => runApp(const DigitalPetApp());
 
-  // This widget is the root of your application.
+class DigitalPetApp extends StatelessWidget {
+  const DigitalPetApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Digital Pet',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorSchemeSeed: Colors.teal,
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const PetScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class PetScreen extends StatefulWidget {
+  const PetScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<PetScreen> createState() => _PetScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _PetScreenState extends State<PetScreen> {
+  late final PetController _pet;
+  final TextEditingController _nameController = TextEditingController();
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  // Short-lived animation state only (not game state).
+  bool _bouncing = false;
+  Timer? _bounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _pet = PetController(); // starts the single hunger timer
+    _nameController.text = _pet.name;
+  }
+
+  @override
+  void dispose() {
+    _bounceTimer?.cancel();
+    _pet.dispose(); // cancels hunger + win timers
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Color get _moodColor => switch (_pet.mood) {
+        Mood.happy => Colors.green,
+        Mood.neutral => Colors.yellow,
+        Mood.unhappy => Colors.red,
+      };
+
+  void _act(VoidCallback action) {
+    action();
+    _bounce();
+  }
+
+  /// Replaces any pending bounce reset so an old callback can't end a new one.
+  void _bounce() {
+    _bounceTimer?.cancel();
+    setState(() => _bouncing = true);
+    _bounceTimer = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      setState(() => _bouncing = false);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+      appBar: AppBar(title: const Text('🐾 Digital Pet')),
+      body: SafeArea(
+        child: ListenableBuilder(
+          listenable: _pet,
+          builder: (context, _) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  _nameRow(),
+                  const SizedBox(height: 12),
+                  _petImage(reduceMotion),
+                  const SizedBox(height: 8),
+                  _moodChip(),
+                  const SizedBox(height: 8),
+                  _speechBubble(reduceMotion),
+                  const SizedBox(height: 16),
+                  _Meter(
+                    label: 'Happiness',
+                    value: _pet.happiness,
+                    reduceMotion: reduceMotion,
+                  ),
+                  _Meter(
+                    label: 'Hunger',
+                    value: _pet.hunger,
+                    reduceMotion: reduceMotion,
+                  ),
+                  _Meter(
+                    label: 'Energy',
+                    value: _pet.energy,
+                    reduceMotion: reduceMotion,
+                  ),
+                  const SizedBox(height: 8),
+                  _outcomeBanner(),
+                  Text(_pet.lastAction, textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  _controls(),
+                ],
+              ),
+            );
+          },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+    );
+  }
+
+  Widget _nameRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: 'Pet name',
+              border: OutlineInputBorder(),
+            ),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (v) => _pet.setName(v),
+          ),
+        ),
+        const SizedBox(width: 8),
+        FilledButton(
+          onPressed: () => _pet.setName(_nameController.text),
+          child: const Text('Confirm'),
+        ),
+      ],
+    );
+  }
+
+  Widget _petImage(bool reduceMotion) {
+    final scale = _pet.petScale * (_bouncing ? 1.12 : 1.0);
+    return Semantics(
+      label: '${_pet.name} the pet, feeling ${_pet.mood.name}',
+      child: ExcludeSemantics(
+        child: AnimatedScale(
+          scale: scale,
+          duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
+          curve: Curves.easeOutBack,
+          child: ColorFiltered(
+            colorFilter: ColorFilter.mode(_moodColor, BlendMode.modulate),
+            child: Image.asset('assets/pet.png', width: 200, height: 200),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Text + emoji so color is never the only mood signal.
+  Widget _moodChip() {
+    return Chip(
+      label: Text('${_pet.name} is ${_pet.moodLabel}'),
+    );
+  }
+
+  Widget _speechBubble(bool reduceMotion) {
+    final message = _pet.petMessage; // derived, never stored
+    return AnimatedSwitcher(
+      duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 300),
+      child: Container(
+        key: ValueKey(message),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text('💬 $message'),
+      ),
+    );
+  }
+
+  Widget _outcomeBanner() {
+    if (_pet.hasWon) {
+      return const _Banner(text: '🏆 You win! Press Reset to play again.');
+    }
+    if (_pet.gameOver) {
+      return const _Banner(text: '💔 Game over. Press Reset to restart.');
+    }
+    if (_pet.paused) {
+      return const _Banner(text: '⏸ Paused. Press Resume to continue.');
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _controls() {
+    final canAct = _pet.canAct;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.center,
+      children: [
+        FilledButton.icon(
+          onPressed: canAct ? () => _act(_pet.play) : null,
+          icon: const Icon(Icons.sports_tennis),
+          label: const Text('Play'),
+        ),
+        FilledButton.icon(
+          onPressed: canAct ? () => _act(_pet.feed) : null,
+          icon: const Icon(Icons.restaurant),
+          label: const Text('Feed'),
+        ),
+        FilledButton.icon(
+          onPressed: canAct ? () => _act(_pet.rest) : null,
+          icon: const Icon(Icons.bedtime),
+          label: const Text('Rest'),
+        ),
+        OutlinedButton.icon(
+          onPressed: (_pet.gameOver || _pet.hasWon)
+              ? null
+              : (_pet.paused ? _pet.resume : _pet.pause),
+          icon: Icon(_pet.paused ? Icons.play_arrow : Icons.pause),
+          label: Text(_pet.paused ? 'Resume' : 'Pause'),
+        ),
+        OutlinedButton.icon(
+          onPressed: _pet.reset,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Reset'),
+        ),
+      ],
+    );
+  }
+}
+
+class _Banner extends StatelessWidget {
+  const _Banner({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(text, textAlign: TextAlign.center),
+    );
+  }
+}
+
+/// Meter that glides to its value; the number shown always comes from state.
+class _Meter extends StatelessWidget {
+  const _Meter({
+    required this.label,
+    required this.value,
+    required this.reduceMotion,
+  });
+
+  final String label;
+  final int value;
+  final bool reduceMotion;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '$label $value out of 100',
+      child: ExcludeSemantics(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              SizedBox(width: 90, child: Text(label)),
+              Expanded(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0, end: value / 100),
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 400),
+                  curve: Curves.easeOut,
+                  builder: (context, v, _) => LinearProgressIndicator(
+                    value: v,
+                    minHeight: 12,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 44,
+                child: Text('$value', textAlign: TextAlign.end),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
