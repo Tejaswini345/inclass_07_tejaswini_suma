@@ -5,10 +5,18 @@ Repository: https://github.com/Tejaswini345/inclass_07_tejaswini_suma
 
 ## Team
 
+<<<<<<< Updated upstream
 | Member | GitHub | Team | Pathway (UG/Grad) | Role | Features claimed |
 |---|---|---|---|---|---|
 | Tejaswini | Tejaswini345 | Team 2 · Pet Personality | Graduate | UI owner, release owner, quality reviewer |
 | Suma | EnjamSuma | Team 1 · Care Systems | Graduate | State owner (rules, timers, tests) | 
+=======
+| Member | Team | Pathway (UG/Grad) | Role |
+|---|---|---|---|---|
+| TODO | Team 1 · Care Systems | TODO | TODO | TODO |
+| TODO | Team 2 · Pet Personality | TODO | TODO | TODO |
+| TODO | | | | |
+>>>>>>> Stashed changes
 
 ### Issues and pull requests
 
